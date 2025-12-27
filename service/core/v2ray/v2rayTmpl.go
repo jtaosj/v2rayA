@@ -911,7 +911,7 @@ func (t *Template) setDualStack() {
 				inbounds6[i].Tag = "THIS_IS_A_DROPPED_TAG"
 				continue
 			} else {
-				t.Inbounds[i].Listen = "127.0.0.1"
+				t.Inbounds[i].Listen = "0.0.0.0"
 			}
 			inbounds6[i].Listen = "::1"
 			if t.Inbounds[i].Tag != "" {
@@ -1079,7 +1079,7 @@ func (t *Template) setInbound(setting *configure.Setting) error {
 			t.Inbounds = append(t.Inbounds, coreObj.Inbound{
 				Port:     52345,
 				Protocol: "socks",
-				Listen:   "127.0.0.1",
+				Listen:   "0.0.0.0",
 				Settings: &coreObj.InboundSettings{
 					UDP: true,
 				},
@@ -1089,7 +1089,7 @@ func (t *Template) setInbound(setting *configure.Setting) error {
 			t.Inbounds = append(t.Inbounds, coreObj.Inbound{
 				Port:     52345,
 				Protocol: "http",
-				Listen:   "127.0.0.1",
+				Listen:   "0.0.0.0",
 				Tag:      "transparent",
 			})
 		}
