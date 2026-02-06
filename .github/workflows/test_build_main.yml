@@ -1,7 +1,7 @@
 name: Test Source of v2rayA
 
 on:
-  push:
+  workflow_dispatch:
     branches:
       - main
       - dependabot/*
