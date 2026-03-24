@@ -7,6 +7,7 @@ import (
 )
 
 type Setting struct {
+	LogLevel                           string          `json:"logLevel"`
 	RulePortMode                       RulePortMode    `json:"pacMode"`
 	ProxyModeWhenSubscribe             ProxyMode       `json:"proxyModeWhenSubscribe"`
 	GFWListAutoUpdateMode              AutoUpdateMode  `json:"pacAutoUpdateMode"`
@@ -24,10 +25,16 @@ type Setting struct {
 	SpecialMode                        SpecialMode     `json:"specialMode"`
 	TransparentType                    TransparentType `json:"transparentType"`
 	AntiPollution                      Antipollution   `json:"antipollution"`
+	TunFakeIP                          bool            `json:"tunFakeIP"`
+	TunIPv6                            bool            `json:"tunIPv6"`
+	TunStrictRoute                     bool            `json:"tunStrictRoute"`
+	TunAutoRoute                       bool            `json:"tunAutoRoute"`
+	TproxyExcludedInterfaces           string          `json:"tproxyExcludedInterfaces"`
 }
 
 func NewSetting() (setting *Setting) {
 	return &Setting{
+		LogLevel:                           "info",
 		RulePortMode:                       WhitelistMode,
 		ProxyModeWhenSubscribe:             ProxyModeDirect,
 		GFWListAutoUpdateMode:              NotAutoUpdate,
@@ -44,6 +51,11 @@ func NewSetting() (setting *Setting) {
 		SpecialMode:                        SpecialModeNone,
 		TransparentType:                    TransparentRedirect,
 		AntiPollution:                      AntipollutionClosed,
+		TunFakeIP:                          true,
+		TunIPv6:                            false,
+		TunStrictRoute:                     false,
+		TunAutoRoute:                       true,
+		TproxyExcludedInterfaces:           "docker*,veth*,wg*,ppp*,br-*",
 	}
 }
 

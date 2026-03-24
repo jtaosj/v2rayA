@@ -92,7 +92,8 @@ export default {
     no: "No",
     switchSite: "Switch to alternate site",
     addOutbound: "Add an outbound",
-    domainsExcluded: "Domains Excluded"
+    domainsExcluded: "Domains Excluded",
+    tproxyExcludedInterfaces: "Excluded Interface Prefixes"
   },
   register: {
     title: "Create an admin account first",
@@ -110,6 +111,9 @@ export default {
   setting: {
     transparentProxy: "Transparent Proxy/System Proxy",
     transparentType: "Transparent Proxy/System Proxy Implementation",
+    tunMode: "TUN Mode",
+    tunIPv6: "TUN IPv6",
+    logLevel: "Log Level",
     pacMode: "Traffic Splitting Mode of Rule Port",
     preventDnsSpoofing: "Prevent DNS Spoofing",
     specialMode: "Special Mode",
@@ -117,11 +121,17 @@ export default {
     autoUpdateSub: "Automatically Update Subscriptions",
     autoUpdateGfwlist: "Automatically Update GFWList",
     preferModeWhenUpdate: "Mode when Update Subscriptions and GFWList",
+    tproxyExcludedInterfaces: "Excluded Interface Prefixes",
     ipForwardOn: "IP Forward",
     portSharingOn: "Port Sharing",
     concurrency: "Concurrency",
     inboundSniffing: "Sniffing",
     options: {
+      trace: "Trace",
+      debug: "Debug",
+      info: "Info",
+      warn: "Warn",
+      error: "Error",
       global: "Do not Split Traffic",
       direct: "Direct",
       pac: "Depend on Rule Port",
@@ -152,6 +162,12 @@ export default {
         "If transparent proxy on, no extra configure needed and all TCP traffic will pass through the v2rayA. Providing proxy service to other computers and docker as the gateway should make option 'Share in LAN' on.",
       transparentType:
         "★tproxy: support UDP, but not support docker. ★redirect: friendly for docker, but does not support UDP and need to occupy local port 53 for dns anti-pollution.",
+      tproxyExcludedInterfaces:
+        "Set the network interface prefixes that should not pass through the transparent proxy. Wildcard * is supported (automatically converted to + in iptables mode). For example: docker*, veth*, wg*, ppp*, br-*. Use commas to separate multiple prefixes.",
+      tunMode:
+        "★FakeIP: Use fake IPs to accelerate DNS resolution and improve performance. ★RealIP: Use real IPs, more suitable for certain special applications.",
+      tunIPv6:
+        "Enable IPv6 traffic support in TUN interface. Note: Requires IPv6 network support from your system.",
       pacMode: `Here you can set the splitting traffic rule of the rule port. By default, "Rule of Splitting Traffic" port is 20172 and HTTP protocol.`,
       preventDnsSpoofing:
         "★Forward DNS Request: DNS requests will be forwarded by proxy server." +
@@ -325,9 +341,25 @@ export default {
   },
   log: {
     logModalTitle: "View logs",
+    logsLabel: "Logs",
     refreshInterval: "Refresh Interval",
     seconds: "seconds",
     autoScoll: "Auto Scroll",
+    autoShowNew: "Auto Show New Logs",
+    category: "Category",
+    source: "Log Source",
+    categories: {
+      all: "All",
+      error: "Error",
+      warn: "Warn",
+      info: "Info",
+      debug: "Debug",
+      trace: "Trace",
+      other: "Other",
+    },
+    sources: {
+      all: "All",
+    },
   },
   tproxyWhiteIpGroups: {
     title: "White IP Groups",
