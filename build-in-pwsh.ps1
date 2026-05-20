@@ -21,14 +21,12 @@ Function Get-build-tools(){
 
 Function Build-v2rayA(){
     #Get OS
-    if ($env:GOOS -eq "windows") {
+    if ($env:GOOS -eq "windows" -or $env:WinDir) {
         $v2rayaBin = "v2raya.exe"
-    } elseif ($env:GOOS -ne "windows") {
-         $v2rayaBin = "v2raya"
-    } elseif ($env:WinDir) {
-        $v2rayaBin = "v2raya.exe"
+        $v2rayaCoreBin = "v2raya_core.exe"
     } else {
         $v2rayaBin = "v2raya"
+        $v2rayaCoreBin = "v2raya_core"
     }
     #Get Paths
     $TerminalPath = Get-Item -LiteralPath ./ | ForEach-Object  -Process { $_.FullName }
@@ -48,9 +46,20 @@ Function Build-v2rayA(){
     #Build Web Panel
     Set-Location -Path "$CurrentPath/gui"
     yarn; yarn build
+    #Build v2raya-core (merged xray-core + MultiObservatory)
+    Set-Location -Path "$CurrentPath/core"
+    ${env:CGO_ENABLED} = "0"
+    go build -ldflags "-s -w" -o "$CurrentPath/$v2rayaCoreBin" ./main
     #Build v2rayA
     Set-Location -Path "$CurrentPath/service"
-    go build -tags "with_gvisor" -ldflags "-X github.com/v2rayA/v2rayA/conf.Version=$version -s -w" -o "$CurrentPath/$v2rayaBin"
+    if ($env:GOOS -eq "windows") {
+        $v2rayaBin = "v2raya.exe"
+    } elseif ($env:WinDir -and !$env:GOOS) {
+        $v2rayaBin = "v2raya.exe"
+    } else {
+        $v2rayaBin = "v2raya"
+    }
+    go build -tags "tinytun" -ldflags "-X github.com/v2rayA/v2rayA/conf.Version=$version -s -w" -o "$CurrentPath/$v2rayaBin"
     Set-Location -Path "$TerminalPath"
 }
 

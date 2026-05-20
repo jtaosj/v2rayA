@@ -219,6 +219,29 @@ v-show="v2ray.net === 'ws' ||
             />
           </b-field>
           <b-field
+            v-show="v2ray.net === 'ws'"
+            label="Max Early Data"
+            label-position="on-border"
+          >
+            <b-input
+              v-model="v2ray.maxEarlyData"
+              type="number"
+              placeholder="Max Early Data"
+              expanded
+            />
+          </b-field>
+          <b-field
+            v-show="v2ray.net === 'ws'"
+            label="Early Data Header Name"
+            label-position="on-border"
+          >
+            <b-input
+              v-model="v2ray.earlyDataHeaderName"
+              placeholder="Early Data Header Name"
+              expanded
+            />
+          </b-field>
+          <b-field
             v-show="v2ray.net === 'mkcp' || v2ray.net === 'kcp'"
             label="Seed"
             label-position="on-border"
@@ -238,6 +261,60 @@ v-show="v2ray.net === 'ws' ||
               ref="v2ray_service_name"
               v-model="v2ray.path"
               type="text"
+              expanded
+            />
+          </b-field>
+          <b-field
+            v-show="v2ray.net === 'grpc'"
+            label="MultiMode"
+            label-position="on-border"
+          >
+            <b-switch v-model="v2ray.multiMode">
+              {{ v2ray.multiMode ? $t('operations.yes') : $t('operations.no') }}
+            </b-switch>
+          </b-field>
+          <b-field
+            v-show="v2ray.net === 'grpc'"
+            label="Idle Timeout"
+            label-position="on-border"
+          >
+            <b-input
+              v-model="v2ray.idleTimeout"
+              type="number"
+              placeholder="Idle Timeout (s)"
+              expanded
+            />
+          </b-field>
+          <b-field
+            v-show="v2ray.net === 'grpc'"
+            label="Health Check Timeout"
+            label-position="on-border"
+          >
+            <b-input
+              v-model="v2ray.healthCheckTimeout"
+              type="number"
+              placeholder="Health Check Timeout (s)"
+              expanded
+            />
+          </b-field>
+          <b-field
+            v-show="v2ray.net === 'grpc'"
+            label="Permit Without Stream"
+            label-position="on-border"
+          >
+            <b-switch v-model="v2ray.permitWithoutStream">
+              {{ v2ray.permitWithoutStream ? $t('operations.yes') : $t('operations.no') }}
+            </b-switch>
+          </b-field>
+          <b-field
+            v-show="v2ray.net === 'grpc'"
+            label="Initial Windows Size"
+            label-position="on-border"
+          >
+            <b-input
+              v-model="v2ray.initialWindowsSize"
+              type="number"
+              placeholder="Initial Windows Size"
               expanded
             />
           </b-field>
@@ -284,6 +361,44 @@ v-show="v2ray.net === 'ws' ||
 ref="v2ray_key" v-model="v2ray.key" :placeholder="$t('configureServer.password')"
               expanded
             />
+          </b-field>
+        </b-tab-item>
+        <b-tab-item label="WireGuard">
+          <b-field label="Name" label-position="on-border">
+            <b-input ref="wireguard_name" v-model="wireguard.name" :placeholder="$t('configureServer.servername')" expanded />
+          </b-field>
+          <b-field label="Address" label-position="on-border">
+            <b-input ref="wireguard_address" v-model="wireguard.address" required placeholder="IP / HOST" expanded />
+          </b-field>
+          <b-field label="Port" label-position="on-border">
+            <b-input ref="wireguard_port" v-model="wireguard.port" required :placeholder="$t('configureServer.port')" type="number" expanded />
+          </b-field>
+          <b-field label="Public Key" label-position="on-border">
+            <b-input ref="wireguard_public_key" v-model="wireguard.publicKey" required placeholder="Public Key" expanded />
+          </b-field>
+          <b-field label="Private Key" label-position="on-border">
+            <b-input ref="wireguard_private_key" v-model="wireguard.privateKey" required placeholder="Private Key" expanded />
+          </b-field>
+          <b-field label="Address (Local)" label-position="on-border">
+            <b-input ref="wireguard_local_address" v-model="wireguard.localAddress" placeholder="CIDR, e.g. 10.0.0.1/24" expanded />
+          </b-field>
+          <b-field label="DNS" label-position="on-border">
+            <b-input ref="wireguard_dns" v-model="wireguard.dns" placeholder="DNS Server" expanded />
+          </b-field>
+          <b-field label="MTU" label-position="on-border">
+            <b-input ref="wireguard_mtu" v-model="wireguard.mtu" type="number" placeholder="MTU" expanded />
+          </b-field>
+          <b-field label="Allowed IPs" label-position="on-border">
+            <b-input ref="wireguard_allowed_ips" v-model="wireguard.allowedIPs" placeholder="0.0.0.0/0, ::/0" expanded />
+          </b-field>
+          <b-field label="Persistent Keepalive" label-position="on-border">
+            <b-input ref="wireguard_persistent_keepalive" v-model="wireguard.persistentKeepalive" type="number" placeholder="Persistent Keepalive (s)" expanded />
+          </b-field>
+          <b-field label="Pre-shared Key" label-position="on-border">
+            <b-input ref="wireguard_pre_shared_key" v-model="wireguard.preSharedKey" placeholder="Pre-shared Key" expanded />
+          </b-field>
+          <b-field label="Endpoint" label-position="on-border">
+            <b-input ref="wireguard_endpoint" v-model="wireguard.endpoint" placeholder="Endpoint (optional, default same as Address:Port)" expanded />
           </b-field>
         </b-tab-item>
         <b-tab-item label="SS">
@@ -369,6 +484,12 @@ ref="v2ray_key" v-model="v2ray.key" :placeholder="$t('configureServer.password')
             ss.plugin === 'v2ray-plugin'
           " label="Path" label-position="on-border">
             <b-input ref="ss_path" v-model="ss.path" placeholder="/" expanded />
+          </b-field>
+          <b-field :label="$t('setting.nodeBackend')" label-position="on-border">
+            <b-select v-model="ss.backend" expanded>
+              <option value="">{{ $t("setting.options.backendSystemDefault") }}</option>
+              <option value="v2ray">{{ $t("setting.options.backendV2ray") }}</option>
+            </b-select>
           </b-field>
         </b-tab-item>
         <b-tab-item label="SSR">
@@ -535,6 +656,12 @@ ref="v2ray_key" v-model="v2ray.key" :placeholder="$t('configureServer.password')
           </b-field>
           <b-field v-show="trojan.net === 'grpc'" label="Service Name" label-position="on-border">
             <b-input ref="trojan_service_name" v-model="trojan.path" type="text" expanded />
+          </b-field>
+          <b-field :label="$t('setting.nodeBackend')" label-position="on-border">
+            <b-select v-model="trojan.backend" expanded>
+              <option value="">{{ $t("setting.options.backendSystemDefault") }}</option>
+              <option value="v2ray">{{ $t("setting.options.backendV2ray") }}</option>
+            </b-select>
           </b-field>
         </b-tab-item>
 
@@ -806,6 +933,13 @@ export default {
       key: "none",
       xhttpMode: "auto",
       xhttpRawJson: "",
+      maxEarlyData: "",
+      earlyDataHeaderName: "",
+      multiMode: false,
+      idleTimeout: "",
+      healthCheckTimeout: "",
+      permitWithoutStream: false,
+      initialWindowsSize: "",
     },
     ss: {
       method: "2022-blake3-aes-128-gcm",
@@ -821,6 +955,7 @@ export default {
       name: "",
       protocol: "ss",
       impl: "",
+      backend: "",
     },
     ssr: {
       method: "aes-128-cfb",
@@ -849,6 +984,7 @@ export default {
       net: "tcp",
       obfs: "none" /* websocket */,
       protocol: "trojan",
+      backend: "",
     },
     juicity: {
       name: "",
@@ -912,6 +1048,20 @@ export default {
       allowInsecure: false,
       protocol: "anytls",
     },
+    wireguard: {
+      name: "",
+      address: "",
+      port: "",
+      publicKey: "",
+      privateKey: "",
+      localAddress: "",
+      dns: "",
+      mtu: "",
+      allowedIPs: "",
+      persistentKeepalive: "",
+      preSharedKey: "",
+      endpoint: "",
+    },
     tabChoice: 0,
   }),
   mounted() {
@@ -931,15 +1081,20 @@ export default {
             this.v2ray = this.resolveURL(res.data.data.sharingAddress);
             this.tabChoice = 0;
           } else if (
+            res.data.data.sharingAddress.toLowerCase().startsWith("wireguard://")
+          ) {
+            this.wireguard = this.resolveURL(res.data.data.sharingAddress);
+            this.tabChoice = 1;
+          } else if (
             res.data.data.sharingAddress.toLowerCase().startsWith("ss://")
           ) {
             this.ss = this.resolveURL(res.data.data.sharingAddress);
-            this.tabChoice = 1;
+            this.tabChoice = 2;
           } else if (
             res.data.data.sharingAddress.toLowerCase().startsWith("ssr://")
           ) {
             this.ssr = this.resolveURL(res.data.data.sharingAddress);
-            this.tabChoice = 2;
+            this.tabChoice = 3;
           } else if (
             res.data.data.sharingAddress
               .toLowerCase()
@@ -949,39 +1104,39 @@ export default {
               .startsWith("trojan-go://")
           ) {
             this.trojan = this.resolveURL(res.data.data.sharingAddress);
-            this.tabChoice = 3;
+            this.tabChoice = 4;
           } else if (
             res.data.data.sharingAddress.toLowerCase().startsWith("juicity://")
           ) {
             this.juicity = this.resolveURL(res.data.data.sharingAddress);
-            this.tabChoice = 4;
+            this.tabChoice = 5;
           } else if (
             res.data.data.sharingAddress.toLowerCase().startsWith("tuic://")
           ) {
             this.tuic = this.resolveURL(res.data.data.sharingAddress);
-            this.tabChoice = 5;
+            this.tabChoice = 6;
           } else if (
             res.data.data.sharingAddress.toLowerCase().startsWith("hysteria2://") ||
             res.data.data.sharingAddress.toLowerCase().startsWith("hy2://")
           ) {
             this.hysteria2 = this.resolveURL(res.data.data.sharingAddress);
-            this.tabChoice = 6;
+            this.tabChoice = 7;
           } else if (
             res.data.data.sharingAddress.toLowerCase().startsWith("http://") ||
             res.data.data.sharingAddress.toLowerCase().startsWith("https://")
           ) {
             this.http = this.resolveURL(res.data.data.sharingAddress);
-            this.tabChoice = 7;
+            this.tabChoice = 8;
           } else if (
             res.data.data.sharingAddress.toLowerCase().startsWith("socks5://")
           ) {
             this.socks5 = this.resolveURL(res.data.data.sharingAddress);
-            this.tabChoice = 8;
+            this.tabChoice = 9;
           } else if (
             res.data.data.sharingAddress.toLowerCase().startsWith("anytls://")
           ) {
             this.anytls = this.resolveURL(res.data.data.sharingAddress);
-            this.tabChoice = 9;
+            this.tabChoice = 10;
           }
           this.$nextTick(() => {
             if (this.readonly) {
@@ -1042,6 +1197,13 @@ export default {
           key: u.params.key,
           xhttpMode: u.params.xhttpMode || "auto",
           xhttpRawJson: u.params.xhttpRawJson || "",
+          maxEarlyData: u.params.maxEarlyData || "",
+          earlyDataHeaderName: u.params.earlyDataHeaderName || "",
+          multiMode: u.params.multiMode === "true" || u.params.multiMode === "1",
+          idleTimeout: u.params.idleTimeout || "",
+          healthCheckTimeout: u.params.healthCheckTimeout || "",
+          permitWithoutStream: u.params.permitWithoutStream === "true" || u.params.permitWithoutStream === "1",
+          initialWindowsSize: u.params.initialWindowsSize || "",
           protocol: "vless",
         };
         if (o.alpn !== "") {
@@ -1053,18 +1215,31 @@ export default {
         console.log(o);
         return o;
       } else if (url.toLowerCase().startsWith("ss://")) {
-        let decoded = Base64.decode(url.substring(url.indexOf("://") + 3));
-        let parts = decoded.split("@");
-        let methodAndPassword = parts[0].split(":");
-        let serverAndPort = parts[1].split(":");
-
+        let u = parseURL(url);
+        let userinfo = u.username;
+        // Handle SIP002 format: ss://BASE64URL@host:port vs legacy ss://BASE64
+        let method = "", password = "";
+        try {
+          let decoded = Base64.decode(userinfo);
+          let idx = decoded.indexOf(":");
+          if (idx > -1) {
+            method = decoded.substring(0, idx);
+            password = decoded.substring(idx + 1);
+          }
+        } catch (e) {
+          method = userinfo;
+        }
+        const ssPlugin = u.params.plugin || "";
         return {
-          method: methodAndPassword[0],
-          password: methodAndPassword[1],
-          server: serverAndPort[0],
-          port: serverAndPort[1],
-          plugin: "", // Default empty, can be extended if plugin info is included
+          method: method,
+          password: password,
+          server: u.host,
+          port: u.port,
+          name: decodeURIComponent(u.hash || ""),
+          plugin: ssPlugin.split(";")[0] || "",
+          plugin_opts: ssPlugin.split(";").slice(1).join(";") || "",
           protocol: "ss",
+          backend: u.params["v2raya-backend"] || "",
         };
       } else if (url.toLowerCase().startsWith("ssr://")) {
         url = Base64.decode(url.substr(6));
@@ -1114,6 +1289,7 @@ export default {
           ssCipher: "2022-blake3-aes-128-gcm",
           path: u.params.path || u.params.serviceName || "",
           protocol: "trojan",
+          backend: u.params["v2raya-backend"] || "",
         };
         if (url.toLowerCase().startsWith("trojan-go://")) {
           console.log(u.params.encryption);
@@ -1218,6 +1394,22 @@ export default {
           allowInsecure: allowInsecure,
           protocol: "anytls",
         };
+      } else if (url.toLowerCase().startsWith("wireguard://")) {
+        let u = parseURL(url);
+        return {
+          name: decodeURIComponent(u.hash),
+          address: u.host,
+          port: u.port,
+          publicKey: decodeURIComponent(u.username),
+          privateKey: u.params.privateKey || "",
+          localAddress: u.params.localAddress || "",
+          dns: u.params.dns || "",
+          mtu: u.params.mtu || "",
+          allowedIPs: u.params.allowedIPs || "",
+          persistentKeepalive: u.params.persistentKeepalive || "",
+          preSharedKey: u.params.preSharedKey || "",
+          endpoint: u.params.endpoint || "",
+        };
       }
       return null;
     },
@@ -1243,8 +1435,31 @@ export default {
           if (srcObj.alpn !== "") {
             query.alpn = srcObj.alpn;
           }
+          if (srcObj.net === "ws") {
+            if (srcObj.maxEarlyData) {
+              query.maxEarlyData = srcObj.maxEarlyData;
+            }
+            if (srcObj.earlyDataHeaderName) {
+              query.earlyDataHeaderName = srcObj.earlyDataHeaderName;
+            }
+          }
           if (srcObj.net === "grpc") {
             query.serviceName = srcObj.path;
+            if (srcObj.multiMode) {
+              query.multiMode = srcObj.multiMode;
+            }
+            if (srcObj.idleTimeout) {
+              query.idleTimeout = srcObj.idleTimeout;
+            }
+            if (srcObj.healthCheckTimeout) {
+              query.healthCheckTimeout = srcObj.healthCheckTimeout;
+            }
+            if (srcObj.permitWithoutStream) {
+              query.permitWithoutStream = srcObj.permitWithoutStream;
+            }
+            if (srcObj.initialWindowsSize) {
+              query.initialWindowsSize = srcObj.initialWindowsSize;
+            }
           }
           if (srcObj.net === "mkcp" || srcObj.net === "kcp") {
             query.seed = srcObj.path;
@@ -1495,6 +1710,40 @@ export default {
             hash: srcObj.name,
             params: query,
           });
+        case "wireguard":
+          query = {};
+          if (srcObj.privateKey) {
+            query.privateKey = srcObj.privateKey;
+          }
+          if (srcObj.localAddress) {
+            query.localAddress = srcObj.localAddress;
+          }
+          if (srcObj.dns) {
+            query.dns = srcObj.dns;
+          }
+          if (srcObj.mtu) {
+            query.mtu = srcObj.mtu;
+          }
+          if (srcObj.allowedIPs) {
+            query.allowedIPs = srcObj.allowedIPs;
+          }
+          if (srcObj.persistentKeepalive) {
+            query.persistentKeepalive = srcObj.persistentKeepalive;
+          }
+          if (srcObj.preSharedKey) {
+            query.preSharedKey = srcObj.preSharedKey;
+          }
+          if (srcObj.endpoint) {
+            query.endpoint = srcObj.endpoint;
+          }
+          return generateURL({
+            protocol: "wireguard",
+            username: srcObj.publicKey,
+            host: srcObj.address,
+            port: srcObj.port,
+            hash: srcObj.name,
+            params: query,
+          });
       }
       return null;
     },
@@ -1522,31 +1771,34 @@ export default {
         if (this.tabChoice === 0 && !k.startsWith("v2ray_")) {
           continue;
         }
-        if (this.tabChoice === 1 && !k.startsWith("ss_")) {
+        if (this.tabChoice === 1 && !k.startsWith("wireguard_")) {
           continue;
         }
-        if (this.tabChoice === 2 && !k.startsWith("ssr_")) {
+        if (this.tabChoice === 2 && !k.startsWith("ss_")) {
           continue;
         }
-        if (this.tabChoice === 3 && !k.startsWith("trojan_")) {
+        if (this.tabChoice === 3 && !k.startsWith("ssr_")) {
           continue;
         }
-        if (this.tabChoice === 4 && !k.startsWith("juicity_")) {
+        if (this.tabChoice === 4 && !k.startsWith("trojan_")) {
           continue;
         }
-        if (this.tabChoice === 5 && !k.startsWith("tuic_")) {
+        if (this.tabChoice === 5 && !k.startsWith("juicity_")) {
           continue;
         }
-        if (this.tabChoice === 6 && !k.startsWith("hysteria2_")) {
+        if (this.tabChoice === 6 && !k.startsWith("tuic_")) {
           continue;
         }
-        if (this.tabChoice === 7 && !k.startsWith("http_")) {
+        if (this.tabChoice === 7 && !k.startsWith("hysteria2_")) {
           continue;
         }
-        if (this.tabChoice === 8 && !k.startsWith("socks5_")) {
+        if (this.tabChoice === 8 && !k.startsWith("http_")) {
           continue;
         }
-        if (this.tabChoice === 9 && !k.startsWith("anytls_")) {
+        if (this.tabChoice === 9 && !k.startsWith("socks5_")) {
+          continue;
+        }
+        if (this.tabChoice === 10 && !k.startsWith("anytls_")) {
           continue;
         }
         let x = this.$refs[k];
@@ -1567,7 +1819,7 @@ export default {
         return;
       }
       let coded = "";
-      // 0: v2ray, 1: ss, 2: ssr, 3: trojan, 4: juicity, 5: tuic, 6: hysteria2, 7: http, 8: socks5, 9: anytls
+      // 0: v2ray, 1: wireguard, 2: ss, 3: ssr, 4: trojan, 5: juicity, 6: tuic, 7: hysteria2, 8: http, 9: socks5, 10: anytls
       if (this.tabChoice === 0) {
         if (
           this.v2ray.allowInsecure === true ||
@@ -1589,16 +1841,24 @@ export default {
         }
         coded = this.generateURL(this.v2ray);
       } else if (this.tabChoice === 1) {
-        // ss://BASE64(method:password)@server:port#name
-        const { method, password, server, port, name, plugin, plugin_opts } = this.ss;
+        // wireguard://address:port?key=value#name
+        coded = this.generateURL(this.wireguard);
+      } else if (this.tabChoice === 2) {
+        // ss://BASE64(method:password)@server:port?plugin=...&v2raya-backend=...#name
+        const { method, password, server, port, name, plugin, plugin_opts, backend } = this.ss;
         let userinfo = btoa(`${method}:${password}`);
-        let url = `ss://${userinfo}@${server}:${port}`;
+        let params = [];
         if (plugin) {
-          url += `?plugin=${encodeURIComponent(plugin + (plugin_opts ? `;${plugin_opts}` : ""))}`;
+          params.push(`plugin=${encodeURIComponent(plugin + (plugin_opts ? `;${plugin_opts}` : ""))}`);
         }
+        if (backend) {
+          params.push(`v2raya-backend=${encodeURIComponent(backend)}`);
+        }
+        let url = `ss://${userinfo}@${server}:${port}`;
+        if (params.length) url += `?${params.join("&")}`;
         if (name) url += `#${encodeURIComponent(name)}`;
         coded = url;
-      } else if (this.tabChoice === 2) {
+      } else if (this.tabChoice === 3) {
         // ssr://server:port:proto:method:obfs:base64(password)/?remarks=base64(remarks)
         const { server, port, proto, method, obfs, password, name, protoParam, obfsParam } = this.ssr;
         let pwdB64 = btoa(password);
@@ -1607,17 +1867,18 @@ export default {
         let obfsParamB64 = obfsParam ? btoa(obfsParam) : "";
         let url = `ssr://${btoa(`${server}:${port}:${proto}:${method}:${obfs}:${pwdB64}/?remarks=${remarksB64}&protoparam=${protoParamB64}&obfsparam=${obfsParamB64}`)}`;
         coded = url;
-      } else if (this.tabChoice === 3) {
-        // trojan://password@server:port?allowInsecure=1&sni=sni#name
-        const { password, server, port, allowInsecure, peer, name } = this.trojan;
+      } else if (this.tabChoice === 4) {
+        // trojan://password@server:port?allowInsecure=1&sni=sni&v2raya-backend=...#name
+        const { password, server, port, allowInsecure, peer, name, backend } = this.trojan;
         let params = [];
         if (allowInsecure) params.push("allowInsecure=1");
         if (peer) params.push(`sni=${encodeURIComponent(peer)}`);
+        if (backend) params.push(`v2raya-backend=${encodeURIComponent(backend)}`);
         let url = `trojan://${encodeURIComponent(password)}@${server}:${port}`;
         if (params.length) url += `?${params.join("&")}`;
         if (name) url += `#${encodeURIComponent(name)}`;
         coded = url;
-      } else if (this.tabChoice === 4) {
+      } else if (this.tabChoice === 5) {
         // juicity://uuid:password@server:port?allow_insecure=1&cc=xxx#name
         const { uuid, password, server, port, allowInsecure, cc, sni, name } = this.juicity;
         let params = [];
@@ -1628,7 +1889,7 @@ export default {
         if (params.length) url += `?${params.join("&")}`;
         if (name) url += `#${encodeURIComponent(name)}`;
         coded = url;
-      } else if (this.tabChoice === 5) {
+      } else if (this.tabChoice === 6) {
         // tuic://uuid:password@server:port?allow_insecure=1&cc=xxx#name
         const { uuid, password, server, port, allowInsecure, cc, sni, name } = this.tuic;
         let params = [];
@@ -1639,7 +1900,7 @@ export default {
         if (params.length) url += `?${params.join("&")}`;
         if (name) url += `#${encodeURIComponent(name)}`;
         coded = url;
-      } else if (this.tabChoice === 6) {
+      } else if (this.tabChoice === 7) {
         // hysteria2://password@server:port?insecure=1&obfs=xxx#name
         const { password, server, port, allowInsecure, obfs, obfsPassword, sni, name } = this.hysteria2;
         let params = [];
@@ -1651,7 +1912,7 @@ export default {
         if (params.length) url += `?${params.join("&")}`;
         if (name) url += `#${encodeURIComponent(name)}`;
         coded = url;
-      } else if (this.tabChoice === 7) {
+      } else if (this.tabChoice === 8) {
         // http(s)://username:password@server:port#name
         const { protocol, username, password, host, port, name } = this.http;
         let url = `${protocol}://`;
@@ -1659,7 +1920,7 @@ export default {
         url += `${host}:${port}`;
         if (name) url += `#${encodeURIComponent(name)}`;
         coded = url;
-      } else if (this.tabChoice === 8) {
+      } else if (this.tabChoice === 9) {
         // socks5://username:password@server:port#name
         const { username, password, host, port, name } = this.socks5;
         let url = `socks5://`;
@@ -1667,7 +1928,7 @@ export default {
         url += `${host}:${port}`;
         if (name) url += `#${encodeURIComponent(name)}`;
         coded = url;
-      } else if (this.tabChoice === 9) {
+      } else if (this.tabChoice === 10) {
         // anytls://auth@host:port?peer=sni&insecure=1#name
         const { auth, host, port, sni, allowInsecure, name } = this.anytls;
         let params = [];

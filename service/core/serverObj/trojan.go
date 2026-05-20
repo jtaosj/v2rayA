@@ -6,6 +6,9 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/v2rayA/v2rayA/core/coreObj"
+	"github.com/v2rayA/v2rayA/core/v2ray/where"
 )
 
 func init() {
@@ -33,6 +36,7 @@ type Trojan struct {
 	AllowInsecure bool   `json:"allowInsecure"`
 	Alpn          string `json:"alpn,omitempty"`
 	Protocol      string `json:"protocol"`
+	Backend       string `json:"backend,omitempty"` // "" (follow system), "daeuniverse", "v2ray"
 }
 
 func NewTrojan(link string) (ServerObj, error) {
@@ -71,6 +75,7 @@ func ParseTrojanURL(u string) (data *Trojan, err error) {
 		ServiceName:   t.Query().Get("serviceName"),
 		AllowInsecure: allowInsecure == "1" || allowInsecure == "true",
 		Protocol:      "trojan",
+		Backend:       t.Query().Get("v2raya-backend"),
 	}
 	if t.Scheme == "trojan-go" {
 		data.Protocol = "trojan-go"
@@ -84,17 +89,62 @@ func ParseTrojanURL(u string) (data *Trojan, err error) {
 	return data, nil
 }
 
-func (t *Trojan) Configuration(info PriorInfo) (c Configuration, err error) {
-	socks5 := url.URL{
-		Scheme: "socks5",
-		Host:   net.JoinHostPort("127.0.0.1", strconv.Itoa(info.PluginPort)),
+func (t *Trojan) GetBackend() string {
+	return t.Backend
+}
+
+func (t *Trojan) ConfigurationMC(info PriorInfo) (c Configuration, err error) {
+	trojanServer := coreObj.Server{
+		Address:  t.Server,
+		Port:     t.Port,
+		Password: t.Password,
 	}
-	chain := []string{socks5.String(), t.ExportToURL()}
+	tlsSettings := &coreObj.TLSSettings{
+		ServerName:    t.Sni,
+		AllowInsecure: t.AllowInsecure,
+	}
+	if t.Alpn != "" {
+		tlsSettings.Alpn = strings.Split(t.Alpn, ",")
+	}
+	streamSettings := &coreObj.StreamSettings{
+		Security:    "tls",
+		TLSSettings: tlsSettings,
+	}
+	switch strings.ToLower(t.Type) {
+	case "grpc":
+		streamSettings.Network = "grpc"
+		streamSettings.GrpcSettings = &coreObj.GrpcSettings{ServiceName: t.ServiceName}
+	case "ws", "websocket":
+		streamSettings.Network = "ws"
+		streamSettings.WsSettings = &coreObj.WsSettings{
+			Path:    t.Path,
+			Headers: coreObj.Headers{Host: t.Host},
+		}
+	default:
+		// tcp is default
+	}
 	return Configuration{
-		CoreOutbound: info.PluginObj(),
-		PluginChain:  strings.Join(chain, ","),
-		UDPSupport:   true,
+		CoreOutbound: coreObj.OutboundObject{
+			Tag:      info.Tag,
+			Protocol: "trojan",
+			Settings: coreObj.Settings{
+				Servers: []coreObj.Server{trojanServer},
+			},
+			StreamSettings: streamSettings,
+		},
+		UDPSupport: false,
 	}, nil
+}
+
+func (t *Trojan) ConfigurationMT(info PriorInfo) (c Configuration, err error) {
+	return t.ConfigurationMC(info)
+}
+
+func (t *Trojan) Configuration(info PriorInfo) (c Configuration, err error) {
+	if info.Variant == where.Xray {
+		return t.ConfigurationMT(info)
+	}
+	return t.ConfigurationMC(info)
 }
 
 func (t *Trojan) ExportToURL() string {
@@ -139,12 +189,15 @@ func (t *Trojan) ExportToURL() string {
 		setValue(&query, "path", t.Path)
 		setValue(&query, "serviceName", t.ServiceName)
 	}
+	if t.Backend != "" {
+		query.Set("v2raya-backend", t.Backend)
+	}
 	u.RawQuery = query.Encode()
 	return u.String()
 }
 
 func (t *Trojan) NeedPluginPort() bool {
-	return true
+	return false
 }
 
 func (t *Trojan) ProtoToShow() string {

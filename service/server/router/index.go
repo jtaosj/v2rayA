@@ -64,7 +64,11 @@ func ServeGUI(r *gin.Engine) {
 		if err != nil {
 			log.Fatal("fs.Sub: %v", err)
 		}
-		ss := http.StripPrefix("/static", statigz.FileServer(webFS.(fs.ReadDirFS)))
+		staticFS := webFS.(fs.ReadDirFS)
+		if sub, subErr := fs.Sub(webFS, "static"); subErr == nil {
+			staticFS = sub.(fs.ReadDirFS)
+		}
+		ss := http.StripPrefix("/static", statigz.FileServer(staticFS))
 		r.GET("/static/*w", func(c *gin.Context) {
 			ss.ServeHTTP(c.Writer, c.Request)
 		})
@@ -78,21 +82,24 @@ func ServeGUI(r *gin.Engine) {
 			log.Fatal("ReadAll index.html: %v", err)
 		}
 		r.GET("/", cachedHTML(html))
+		if favicon, favErr := webFS.Open("favicon.ico"); favErr == nil {
+			defer favicon.Close()
+			favData, _ := io.ReadAll(favicon)
+			r.GET("/favicon.ico", func(c *gin.Context) {
+				c.Data(http.StatusOK, "image/x-icon", favData)
+			})
+		}
 	} else {
 		if _, err := os.Stat(webDir); os.IsNotExist(err) {
 			log.Warn("web files cannot be found at %v. web UI cannot be served", webDir)
 		} else {
-			filepath.Walk(webDir, func(path string, info os.FileInfo, err error) error {
-				if path == webDir {
-					return nil
-				}
-				if info.IsDir() {
-					r.Static("/static/"+info.Name(), path)
-					return filepath.SkipDir
-				}
-				r.StaticFile("/static/"+info.Name(), path)
-				return nil
-			})
+			staticDir := filepath.Join(webDir, "static")
+			if info, statErr := os.Stat(staticDir); statErr == nil && info.IsDir() {
+				r.Static("/static", staticDir)
+			} else {
+				// Backward-compatible fallback for legacy builds that emit hashed assets at web root.
+				r.Static("/static", webDir)
+			}
 
 			f, err := os.Open(filepath.Join(webDir, "index.html"))
 			if err != nil {
@@ -104,6 +111,10 @@ func ServeGUI(r *gin.Engine) {
 				log.Fatal("ReadAll index.html: %v", err)
 			}
 			r.GET("/", cachedHTML(html))
+			favPath := filepath.Join(webDir, "favicon.ico")
+			if _, favErr := os.Stat(favPath); favErr == nil {
+				r.StaticFile("/favicon.ico", favPath)
+			}
 		}
 	}
 
@@ -140,6 +151,7 @@ func Run() error {
 	corsConfig.AllowWebSockets = true
 	corsConfig.AllowCredentials = true
 	corsConfig.AddAllowHeaders("Authorization", common.RequestIdHeader)
+	corsConfig.AddExposeHeaders("Content-Disposition")
 	engine.Use(cors.New(corsConfig))
 	noAuth := engine.Group("api",
 		nocache,
@@ -148,6 +160,7 @@ func Run() error {
 	{
 		noAuth.GET("version", controller.GetVersion)
 		noAuth.POST("login", controller.PostLogin)
+		noAuth.GET("account", controller.GetAccount)
 		noAuth.POST("account", controller.PostAccount)
 	}
 	auth := engine.Group("api",
@@ -184,15 +197,19 @@ func Run() error {
 		auth.PATCH("subscription", controller.PatchSubscription)
 		auth.GET("ports", controller.GetPorts)
 		auth.PUT("ports", controller.PutPorts)
+		auth.GET("customInbound", controller.GetCustomInbound)
+		auth.POST("customInbound", controller.PostCustomInbound)
+		auth.DELETE("customInbound", controller.DeleteCustomInbound)
 		//auth.PUT("account", controller.PutAccount)
-		auth.GET("dnsList", controller.GetDnsList)
-		auth.PUT("dnsList", controller.PutDnsList)
+		auth.GET("dnsRules", controller.GetDnsRules)
+		auth.PUT("dnsRules", controller.PutDnsRules)
 		auth.GET("routingA", controller.GetRoutingA)
 		auth.PUT("routingA", controller.PutRoutingA)
 		auth.GET("outbounds", controller.GetOutbounds)
 		auth.GET("outbound", controller.GetOutbound)
 		auth.POST("outbound", controller.PostOutbound)
 		auth.PUT("outbound", controller.PutOutbound)
+		auth.PUT("outboundConnections", controller.PutOutboundConnections)
 		auth.DELETE("outbound", controller.DeleteOutbound)
 		auth.GET("message", controller.WsMessage)
 		auth.GET("logger", controller.GetLogger)
@@ -200,6 +217,7 @@ func Run() error {
 		auth.GET("tproxyWhiteIpGroups", controller.GetTproxyWhiteIpGroups)
 		auth.PUT("domainsExcluded", controller.PutDomainsExcluded)
 		auth.PUT("tproxyWhiteIpGroups", controller.PutTproxyWhiteIpGroups)
+		auth.GET("networkInterfaces", controller.GetNetworkInterfaces)
 	}
 
 	ServeGUI(engine)

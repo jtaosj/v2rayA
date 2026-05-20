@@ -10,6 +10,7 @@ import (
 
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/core/coreObj"
+	"github.com/v2rayA/v2rayA/core/v2ray/where"
 )
 
 func init() {
@@ -31,6 +32,7 @@ type Shadowsocks struct {
 	Cipher   string `json:"cipher"`
 	Plugin   Sip003 `json:"plugin"`
 	Protocol string `json:"protocol"`
+	Backend  string `json:"backend,omitempty"` // "" (follow system), "daeuniverse", "v2ray"
 }
 
 func NewShadowsocks(link string) (ServerObj, error) {
@@ -70,6 +72,7 @@ func ParseSSURL(u string) (data *Shadowsocks, err error) {
 			Name:     u.Fragment,
 			Plugin:   sip003,
 			Protocol: "shadowsocks",
+			Backend:  u.Query().Get("v2raya-backend"),
 		}, true
 	}
 	var (
@@ -325,21 +328,19 @@ func (s *Shadowsocks) ConfigurationMT(info PriorInfo) (c Configuration, err erro
 	}, nil
 }
 
-func (s *Shadowsocks) Configuration(info PriorInfo) (c Configuration, err error) {
-	socks5 := url.URL{
-		Scheme: "socks5",
-		Host:   net.JoinHostPort("127.0.0.1", strconv.Itoa(info.PluginPort)),
-	}
-	chain := []string{socks5.String(), s.ExportToURL()}
-	return Configuration{
-		CoreOutbound: info.PluginObj(),
-		PluginChain:  strings.Join(chain, ","),
-		UDPSupport:   true,
-	}, nil
+func (s *Shadowsocks) GetBackend() string {
+	return s.Backend
 }
 
-func (s *Shadowsocks) ExportToURL() string {
-	// sip002
+func (s *Shadowsocks) Configuration(info PriorInfo) (c Configuration, err error) {
+	if info.Variant == where.Xray {
+		return s.ConfigurationMT(info)
+	}
+	return s.ConfigurationMC(info)
+}
+
+// exportToChainURL is kept for the ConfigurationMC path used by non-xray variants.
+func (s *Shadowsocks) exportToChainURL() string {
 	u := &url.URL{
 		Scheme:   "ss",
 		User:     url.User(strings.TrimSuffix(base64.URLEncoding.EncodeToString([]byte(s.Cipher+":"+s.Password)), "=")),
@@ -354,8 +355,28 @@ func (s *Shadowsocks) ExportToURL() string {
 	return u.String()
 }
 
+func (s *Shadowsocks) ExportToURL() string {
+	u := &url.URL{
+		Scheme:   "ss",
+		User:     url.User(strings.TrimSuffix(base64.URLEncoding.EncodeToString([]byte(s.Cipher+":"+s.Password)), "=")),
+		Host:     net.JoinHostPort(s.Server, strconv.Itoa(s.Port)),
+		Fragment: s.Name,
+	}
+	q := u.Query()
+	if s.Plugin.Name != "" {
+		q.Set("plugin", s.Plugin.String())
+	}
+	if s.Backend != "" {
+		q.Set("v2raya-backend", s.Backend)
+	}
+	if len(q) > 0 {
+		u.RawQuery = q.Encode()
+	}
+	return u.String()
+}
+
 func (s *Shadowsocks) NeedPluginPort() bool {
-	return true
+	return false
 }
 
 func (s *Shadowsocks) GetProtocol() string {

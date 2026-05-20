@@ -22,14 +22,18 @@ type Setting struct {
 	IpForward                          bool            `json:"ipforward"`
 	RouteOnly                          bool            `json:"routeOnly"`
 	PortSharing                        bool            `json:"portSharing"`
-	SpecialMode                        SpecialMode     `json:"specialMode"`
 	TransparentType                    TransparentType `json:"transparentType"`
-	AntiPollution                      Antipollution   `json:"antipollution"`
-	TunFakeIP                          bool            `json:"tunFakeIP"`
-	TunIPv6                            bool            `json:"tunIPv6"`
-	TunStrictRoute                     bool            `json:"tunStrictRoute"`
-	TunAutoRoute                       bool            `json:"tunAutoRoute"`
 	TproxyExcludedInterfaces           string          `json:"tproxyExcludedInterfaces"`
+	TunBypassInterfaces                string          `json:"tunBypassInterfaces"`
+	TunAutoRoute                       bool            `json:"tunAutoRoute"`
+	TunRouteShellType                  string          `json:"tunRouteShellType"`
+	TunRouteShellPath                  string          `json:"tunRouteShellPath"`
+	TunSetupScript                     string          `json:"tunSetupScript"`
+	TunTeardownScript                  string          `json:"tunTeardownScript"`
+	TunProcessBackend                  string          `json:"tunProcessBackend"`
+	TunExcludeProcesses                string          `json:"tunExcludeProcesses"`
+	SsBackend                          string          `json:"ssBackend"`
+	TrojanBackend                      string          `json:"trojanBackend"`
 }
 
 func NewSetting() (setting *Setting) {
@@ -48,14 +52,9 @@ func NewSetting() (setting *Setting) {
 		Transparent:                        TransparentClose,
 		IpForward:                          ipforward.IsIpForwardOn(),
 		PortSharing:                        false,
-		SpecialMode:                        SpecialModeNone,
 		TransparentType:                    TransparentRedirect,
-		AntiPollution:                      AntipollutionClosed,
-		TunFakeIP:                          true,
-		TunIPv6:                            false,
-		TunStrictRoute:                     false,
-		TunAutoRoute:                       true,
 		TproxyExcludedInterfaces:           "docker*,veth*,wg*,ppp*,br-*",
+		TunAutoRoute:                       true,
 	}
 }
 
