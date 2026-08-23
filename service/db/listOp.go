@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/tidwall/gjson"
@@ -37,13 +38,25 @@ func ListSet(bucket string, key string, index int, val interface{}) (err error) 
 			return err
 		}
 		parsed := gjson.ParseBytes(b)
+		var subID int64
+		if err := db.QueryRow("SELECT id FROM subscriptions WHERE sort = ?", index).Scan(&subID); err != nil {
+			if err == sql.ErrNoRows {
+				return fmt.Errorf("ListSet: subscription at index %d not found", index)
+			}
+			return err
+		}
 		address := parsed.Get("address").String()
+		remarks := parsed.Get("remarks").String()
 		status := parsed.Get("status").String()
 		info := parsed.Get("info").String()
+		autoSelect := 0
+		if parsed.Get("autoSelect").Bool() {
+			autoSelect = 1
+		}
 
 		result, err := db.Exec(
-			"UPDATE subscriptions SET address = ?, status = ?, info = ?, updated_at = CURRENT_TIMESTAMP WHERE sort = ?",
-			address, status, info, index,
+			"UPDATE subscriptions SET address = ?, remarks = ?, status = ?, info = ?, auto_select = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+			address, remarks, status, info, autoSelect, subID,
 		)
 		if err != nil {
 			return err
@@ -53,9 +66,18 @@ func ListSet(bucket string, key string, index int, val interface{}) (err error) 
 			return fmt.Errorf("ListSet: subscription at index %d not found", index)
 		}
 
-		// Update servers within this subscription
-		subID := int64(index + 1)
-		db.Exec("DELETE FROM servers WHERE type = 'subscription_server' AND sub_id = ?", subID)
+		// Update servers within this subscription.
+		// Clean up outbound_connections first to satisfy foreign key constraint;
+		// otherwise the delete fails and the insert below duplicates the list.
+		if _, err := db.Exec(`
+			DELETE FROM outbound_connections
+			WHERE server_id IN (SELECT id FROM servers WHERE type = 'subscription_server' AND sub_id = ?)
+		`, subID); err != nil {
+			return fmt.Errorf("ListSet: failed to clear outbound connections of subscription %d: %w", index, err)
+		}
+		if _, err := db.Exec("DELETE FROM servers WHERE type = 'subscription_server' AND sub_id = ?", subID); err != nil {
+			return fmt.Errorf("ListSet: failed to clear old servers of subscription %d: %w", index, err)
+		}
 
 		servers := parsed.Get("servers").Array()
 		for j, s := range servers {
@@ -93,10 +115,12 @@ func ListGet(bucket string, key string, index int) (b []byte, err error) {
 		return []byte(configJSON), nil
 
 	case "touch/subscriptions":
-		var address, status, info string
+		var subID int64
+		var address, remarks, status, info string
+		var autoSelectInt int
 		err = db.QueryRow(
-			"SELECT address, status, info FROM subscriptions WHERE sort = ?", index,
-		).Scan(&address, &status, &info)
+			"SELECT id, address, remarks, status, info, auto_select FROM subscriptions WHERE sort = ?", index,
+		).Scan(&subID, &address, &remarks, &status, &info, &autoSelectInt)
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("ListGet: can't get element from an empty list")
 		}
@@ -107,25 +131,26 @@ func ListGet(bucket string, key string, index int) (b []byte, err error) {
 		// Reconstruct the subscription JSON with servers
 		rows, err := db.Query(
 			"SELECT config_json FROM servers WHERE type = 'subscription_server' AND sub_id = ? ORDER BY sort",
-			int64(index+1),
+			subID,
 		)
 		if err != nil {
 			return nil, err
 		}
 		defer rows.Close()
 
-		var servers []gjson.Result
+		var servers []string
 		for rows.Next() {
 			var s string
 			if err := rows.Scan(&s); err != nil {
 				return nil, err
 			}
-			servers = append(servers, gjson.Parse(s))
+			servers = append(servers, s)
 		}
 
-		serversJSON, _ := jsoniter.Marshal(servers)
-		result := fmt.Sprintf(`{"address":"%s","status":"%s","info":"%s","servers":%s}`,
-			address, status, info, string(serversJSON))
+		serversJSON := "[" + strings.Join(servers, ",") + "]"
+		autoSelect := autoSelectInt != 0
+		result := fmt.Sprintf(`{"remarks":"%s","address":"%s","status":"%s","info":"%s","servers":%s,"autoSelect":%v}`,
+			remarks, address, status, info, serversJSON, autoSelect)
 		return []byte(result), nil
 
 	default:
@@ -180,16 +205,21 @@ func ListAppend(bucket string, key string, val interface{}) (err error) {
 		if parsed.IsArray() {
 			for _, item := range parsed.Array() {
 				address := item.Get("address").String()
+				remarks := item.Get("remarks").String()
 				status := item.Get("status").String()
 				info := item.Get("info").String()
+				autoSelect := 0
+				if item.Get("autoSelect").Bool() {
+					autoSelect = 1
+				}
 
 				var maxSort int
 				db.QueryRow("SELECT COALESCE(MAX(sort), -1) FROM subscriptions").Scan(&maxSort)
 				newSort := maxSort + 1
 
 				res, err := db.Exec(
-					"INSERT INTO subscriptions (address, status, info, sort) VALUES (?, ?, ?, ?)",
-					address, status, info, newSort,
+					"INSERT INTO subscriptions (address, remarks, status, info, auto_select, sort) VALUES (?, ?, ?, ?, ?, ?)",
+					address, remarks, status, info, autoSelect, newSort,
 				)
 				if err != nil {
 					return err
@@ -244,7 +274,7 @@ func ListGetAll(bucket string, key string) (list [][]byte, err error) {
 		return list, rows.Err()
 
 	case "touch/subscriptions":
-		rows, err := db.Query("SELECT id, address, status, info FROM subscriptions ORDER BY sort")
+		rows, err := db.Query("SELECT id, address, remarks, status, info, auto_select FROM subscriptions ORDER BY sort")
 		if err != nil {
 			return nil, err
 		}
@@ -252,8 +282,9 @@ func ListGetAll(bucket string, key string) (list [][]byte, err error) {
 
 		for rows.Next() {
 			var id int64
-			var address, status, info string
-			if err := rows.Scan(&id, &address, &status, &info); err != nil {
+			var address, remarks, status, info string
+			var autoSelectInt int
+			if err := rows.Scan(&id, &address, &remarks, &status, &info, &autoSelectInt); err != nil {
 				return nil, err
 			}
 
@@ -265,20 +296,21 @@ func ListGetAll(bucket string, key string) (list [][]byte, err error) {
 				return nil, err
 			}
 
-			var servers []gjson.Result
+			var servers []string
 			for serverRows.Next() {
 				var s string
 				if err := serverRows.Scan(&s); err != nil {
 					serverRows.Close()
 					return nil, err
 				}
-				servers = append(servers, gjson.Parse(s))
+				servers = append(servers, s)
 			}
 			serverRows.Close()
 
-			serversJSON, _ := jsoniter.Marshal(servers)
-			result := fmt.Sprintf(`{"address":"%s","status":"%s","info":"%s","servers":%s}`,
-				address, status, info, string(serversJSON))
+			serversJSON := "[" + strings.Join(servers, ",") + "]"
+			autoSelect := autoSelectInt != 0
+			result := fmt.Sprintf(`{"remarks":"%s","address":"%s","status":"%s","info":"%s","servers":%s,"autoSelect":%v}`,
+				remarks, address, status, info, serversJSON, autoSelect)
 			list = append(list, []byte(result))
 		}
 		return list, rows.Err()
@@ -299,6 +331,11 @@ func ListRemove(bucket, key string, indexes []int) error {
 	switch bucket + "/" + key {
 	case "touch/servers":
 		for _, idx := range indexes {
+			// Clean up outbound_connections first to satisfy foreign key constraint
+			_, _ = db.Exec(`
+				DELETE FROM outbound_connections
+				WHERE server_id IN (SELECT id FROM servers WHERE type = 'server' AND sort = ?)
+			`, idx)
 			_, err := db.Exec("DELETE FROM servers WHERE type = 'server' AND sort = ?", idx)
 			if err != nil {
 				return err
@@ -323,6 +360,11 @@ func ListRemove(bucket, key string, indexes []int) error {
 				}
 				return err
 			}
+			// Clean up outbound_connections first to satisfy foreign key constraint
+			_, _ = db.Exec(`
+				DELETE FROM outbound_connections
+				WHERE server_id IN (SELECT id FROM servers WHERE type = 'subscription_server' AND sub_id = ?)
+			`, subID)
 			_, err = db.Exec("DELETE FROM servers WHERE type = 'subscription_server' AND sub_id = ?", subID)
 			if err != nil {
 				return err

@@ -8,11 +8,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/conf"
-	v2ray "github.com/v2rayA/v2rayA/core/v2ray"
-	"github.com/v2rayA/v2rayA/core/v2ray/asset/dat"
-	"github.com/v2rayA/v2rayA/core/v2ray/service"
-	"github.com/v2rayA/v2rayA/core/v2ray/where"
 	"github.com/v2rayA/v2rayA/db/configure"
+	v2ray "github.com/v2rayA/v2rayA/kernel/v2ray"
+	"github.com/v2rayA/v2rayA/kernel/v2ray/asset/dat"
+	"github.com/v2rayA/v2rayA/kernel/v2ray/service"
+	"github.com/v2rayA/v2rayA/kernel/v2ray/where"
 	"github.com/v2rayA/v2rayA/pkg/util/privilege"
 )
 
@@ -31,33 +31,29 @@ func GetVersion(ctx *gin.Context) {
 		isRoot = privilege.IsRootOrAdmin()
 	}
 
-	variant, versionErr := service.CheckV5()
-
-	// Check core version match
-	coreVersionValid := true
-	var coreVersionErr string
-	if v2rayBinPath, err := where.GetV2rayBinPath(); err == nil {
-		if err := where.CheckCoreVersion(v2rayBinPath, conf.Version); err != nil {
-			coreVersionValid = false
-			coreVersionErr = err.Error()
-		}
-	}
+	versionErr := service.CheckCoreVersionMatch()
 
 	common.ResponseSuccess(ctx, gin.H{
 		"version":          conf.Version,
 		"foundNew":         conf.FoundNew,
 		"remoteVersion":    conf.RemoteVersion,
 		"serviceValid":     service.IsV2rayServiceValid(),
-		"v5":               versionErr == nil, // FIXME: Compomise on compatibility.
+		"v5":               versionErr == nil,
 		"lite":             lite,
-		"loadBalanceValid": variant == where.V2rayaCore && versionErr == nil,
-		"variant":          variant,
+		"loadBalanceValid": true,
+		"variant":          where.V2rayaCore,
 		"os":               runtime.GOOS,
 		"isRoot":           isRoot,
 		"tinytunSupported": v2ray.IsTinyTunEnabled(),
-		"coreVersionValid": coreVersionValid,
-		"coreVersionErr":   coreVersionErr,
-		"hasAccounts":      configure.HasAnyAccounts(),
+		"coreVersionValid": versionErr == nil,
+		"coreVersionErr": func() string {
+			if versionErr != nil {
+				return versionErr.Error()
+			}
+			return ""
+		}(),
+		"hasAccounts":    configure.HasAnyAccounts(),
+		"lastKernelExit": configure.GetLastKernelExitStatus(),
 	})
 }
 

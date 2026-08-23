@@ -115,10 +115,12 @@ export default {
         [this.$t("common.checkRunning")]: "is-light",
         [this.$t("common.notRunning")]: "is-danger",
         [this.$t("common.isRunning")]: "is-success",
+        [this.$t("common.waitingNetwork")]: "is-warning",
       },
       coverStatusText: "",
       runningState: {
         running: this.$t("common.checkRunning"),
+        networkPaused: false,
         connectedServer: null,
         outboundToServerName: {},
       },
@@ -240,14 +242,6 @@ export default {
             queue: false,
             duration: 10000,
           });
-        } else if (!res.data.data.v5) {
-          this.$buefy.toast.open({
-            message: this.$t("version.v2rayNotV5"),
-            type: "is-danger",
-            position: "is-top",
-            queue: false,
-            duration: 10000,
-          });
         }
         localStorage["lite"] = res.data.data.lite;
         localStorage["loadBalanceValid"] = res.data.data.loadBalanceValid;
@@ -291,8 +285,11 @@ export default {
       if (u.protocol === "https") {
         protocol = "wss";
       }
-      url = `${protocol}://${u.host}:${u.port
-        }/api/message?Authorization=${encodeURIComponent(localStorage["token"])}`;
+      let basePath = u.path;
+      if (basePath.endsWith("/api")) {
+        basePath = basePath.slice(0, -4);
+      }
+      url = `${protocol}://${u.host}:${u.port}${basePath}/api/message?Authorization=${encodeURIComponent(localStorage["token"])}`;
       if (this.ws) {
         // console.log("ws close");
         this.ws.close();
@@ -305,6 +302,15 @@ export default {
       ws.onopen = () => {
         // console.log("ws opened");
         this._wsRetries = 0; // 连接成功后重置重试计数
+        // Re-sync running state on every (re)connect.  WebSocket messages are
+        // not replayed, so if the connection was broken while Tun was setting up
+        // routes the frontend might miss the running_state message and stay
+        // stuck on "检测中" (Checking) forever.
+        this.$nextTick(() => {
+          if (this.$refs.nodeRef) {
+            this.$refs.nodeRef.syncLatestNodeOverview();
+          }
+        });
       };
       ws.onmessage = (msg) => {
         msg.data && that.handleMessage(JSON.parse(msg.data));
@@ -330,8 +336,12 @@ export default {
       ) {
         this.observatory = msg;
       }
-      if (msg.type === "running_state" && msg.body && msg.body.running === false) {
-        this.$refs.nodeRef && this.$refs.nodeRef.notifyStopped();
+      if (msg.type === "running_state" && msg.body) {
+        if (msg.body.running === false) {
+          this.$refs.nodeRef && this.$refs.nodeRef.notifyStopped(!!msg.body.networkPaused);
+        } else {
+          this.$refs.nodeRef && this.$refs.nodeRef.notifyRunning(!!msg.body.networkPaused);
+        }
       }
     },
     handleOutboundDropdownActiveChange(active) {
@@ -518,6 +528,8 @@ export default {
         this.coverStatusText = this.$t("v2ray.stop");
       } else if (this.runningState.running === this.$t("common.notRunning")) {
         this.coverStatusText = this.$t("v2ray.start");
+      } else if (this.runningState.running === this.$t("common.waitingNetwork")) {
+        this.coverStatusText = this.$t("common.waitingNetwork");
       }
     },
     handleOnStatusMouseLeave() {
@@ -560,7 +572,10 @@ export default {
       });
     },
     handleClickStatus() {
-      if (this.runningState.running === this.$t("common.notRunning")) {
+      if (
+        this.runningState.running === this.$t("common.notRunning") ||
+        this.runningState.running === this.$t("common.waitingNetwork")
+      ) {
         let cancel;
         let loading = this.$buefy.loading.open();
         waitingConnected(
@@ -574,6 +589,7 @@ export default {
             if (res.data.code === "SUCCESS") {
               Object.assign(this.runningState, {
                 running: this.$t("common.isRunning"),
+                networkPaused: false,
                 connectedServer: res.data.data.touch.connectedServer,
               });
             } else {
@@ -599,6 +615,7 @@ export default {
           if (res.data.code === "SUCCESS") {
             Object.assign(this.runningState, {
               running: this.$t("common.notRunning"),
+              networkPaused: false,
               connectedServer: res.data.data.touch.connectedServer,
             });
           } else {
@@ -630,6 +647,7 @@ export default {
     },
     applyThemeClass() {
       document.body.classList.toggle('theme-dark', this.isDarkTheme);
+      document.documentElement.classList.toggle('theme-dark', this.isDarkTheme);
     },
     toggleTheme() {
       const order = ['auto', 'light', 'dark'];
@@ -688,7 +706,7 @@ html {
   //  }
 
   #app {
-    height: calc(100vh - 3.25rem);
+    min-height: calc(100vh - 3.25rem);
     /*overflow-y: auto;*/
     //overflow-scrolling: touch;
     //-webkit-overflow-scrolling: touch;

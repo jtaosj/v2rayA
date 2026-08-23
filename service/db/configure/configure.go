@@ -15,6 +15,12 @@ import (
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
 
+// isJSONFieldExists 检查原始 JSON 中是否存在指定字段。
+// 用于在迁移场景中判断字段是否由旧配置显式设置。
+func isJSONFieldExists(raw []byte, field string) bool {
+	return gjson.GetBytes(raw, field).Exists()
+}
+
 type Configure struct {
 	Servers             []*ServerRaw        `json:"servers"`
 	Subscriptions       []*SubscriptionRaw  `json:"subscriptions"`
@@ -194,8 +200,38 @@ func GetSettingNotNil() *Setting {
 		_ = jsoniter.Unmarshal(b, r)
 	}
 	_ = common.FillEmpty(r, NewSetting())
+	// Restore TproxyExcludedInterfaces from DB if user explicitly cleared it
+	// FillEmpty replaces empty strings with defaults, but we need to preserve
+	// user's intent to clear this field
+	if e == nil && b != nil {
+		var raw Setting
+		if err := jsoniter.Unmarshal(b, &raw); err == nil {
+			// If user explicitly saved an empty string, keep it empty
+			r.TproxyExcludedInterfaces = raw.TproxyExcludedInterfaces
+		}
+	}
 	if r.TransparentType == "" {
 		r.TransparentType = TransparentRedirect
+	}
+	// 执行新 DNS 模块配置迁移（处理旧配置升级场景）
+	MigrateSetting(r)
+	// 处理 DNS 缓存布尔字段默认值：common.FillEmpty 跳过布尔字段，
+	// 因此如果旧配置中缺少这些字段，它们会保持 false。
+	if e == nil && b != nil {
+		hasDNSListenAddr := isJSONFieldExists(b, "dnsListenAddr")
+		hasDNSCacheEnabled := isJSONFieldExists(b, "dnsCacheEnabled")
+		hasDNSPrefetch := isJSONFieldExists(b, "dnsPrefetch")
+		hasDNSNegativeCache := isJSONFieldExists(b, "dnsNegativeCache")
+
+		if !hasDNSListenAddr && !hasDNSCacheEnabled && !hasDNSPrefetch && !hasDNSNegativeCache {
+			r.DnsCacheEnabled = true
+			r.DnsPrefetch = true
+			r.DnsNegativeCache = true
+		}
+	} else if e != nil || b == nil {
+		r.DnsCacheEnabled = true
+		r.DnsPrefetch = true
+		r.DnsNegativeCache = true
 	}
 	return r
 }
@@ -492,4 +528,24 @@ func SetRunning(running bool) (err error) {
 func GetRunning() (running bool) {
 	_ = db.Get("system", "running", &running)
 	return running
+}
+
+const (
+	// LastKernelExit status values.
+	LastKernelExitStopped = "stopped"
+	LastKernelExitRunning = "running"
+	LastKernelExitCrashed = "crashed"
+)
+
+// SetLastKernelExitStatus records how the kernel last exited.
+// Values: "stopped" (clean stop), "running" (currently running), "crashed" (unexpected exit).
+func SetLastKernelExitStatus(status string) error {
+	return db.Set("system", "lastKernelExit", status)
+}
+
+// GetLastKernelExitStatus returns the recorded last kernel exit status.
+func GetLastKernelExitStatus() string {
+	var s string
+	_ = db.Get("system", "lastKernelExit", &s)
+	return s
 }

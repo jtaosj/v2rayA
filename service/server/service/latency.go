@@ -1,6 +1,7 @@
 package service
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -13,10 +14,10 @@ import (
 
 	"github.com/v2rayA/v2rayA/common/httpClient"
 	"github.com/v2rayA/v2rayA/common/resolv"
-	"github.com/v2rayA/v2rayA/core/coreObj"
-	"github.com/v2rayA/v2rayA/core/serverObj"
-	"github.com/v2rayA/v2rayA/core/v2ray"
 	"github.com/v2rayA/v2rayA/db/configure"
+	"github.com/v2rayA/v2rayA/kernel/coreObj"
+	"github.com/v2rayA/v2rayA/kernel/serverObj"
+	"github.com/v2rayA/v2rayA/kernel/v2ray"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
 
@@ -206,7 +207,9 @@ func TestHttpLatency(which []*configure.Which, timeout time.Duration, maxParalle
 	tmpl.Routing.DomainStrategy = "AsIs"
 	addHosts(tmpl, vms)
 	tmpl.SetOutboundSockopt()
+	v2ray.ProcessManager.SetLatencyTesting(true)
 	if err := v2ray.ProcessManager.Start(tmpl); err != nil {
+		v2ray.ProcessManager.SetLatencyTesting(false)
 		return nil, err
 	}
 	//limit the concurrency
@@ -230,6 +233,7 @@ func TestHttpLatency(which []*configure.Which, timeout time.Duration, maxParalle
 		}(i)
 	}
 	wg.Wait()
+	v2ray.ProcessManager.SetLatencyTesting(false)
 	if v2rayRunning && configure.GetConnectedServers() != nil {
 		err := v2ray.UpdateV2RayConfig()
 		if err != nil {
@@ -270,17 +274,21 @@ func httpLatency(which *configure.Which, port string, timeout time.Duration, cus
 	resp, err := c.Do(req)
 	if err != nil || resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		if err != nil {
-			es := strings.ToLower(err.Error())
-			switch {
-			case strings.Contains(es, "eof"):
-				which.Latency = "NOT STABLE"
-			case strings.Contains(es, "does not look like a tls handshake"):
-				which.Latency = "INVALID"
-			case strings.Contains(es, "timeout"):
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
 				which.Latency = "TIMEOUT"
-			default:
-				which.Latency = err.Error()
+				return
 			}
+			var recErr tls.RecordHeaderError
+			if errors.As(err, &recErr) {
+				which.Latency = "INVALID"
+				return
+			}
+			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+				which.Latency = "NOT STABLE"
+				return
+			}
+			which.Latency = err.Error()
 		} else {
 			which.Latency = "BAD RESPONSE"
 		}
