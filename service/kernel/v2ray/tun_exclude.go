@@ -254,12 +254,11 @@ func collectNodeIPs(tmpl *Template) []string {
 		hostnames = append(hostnames, h)
 	}
 
-	// Source 1: read directly from the connected-server database.
-	// This is the most reliable source because it does not depend on whether
-	// serverInfoMap was populated (e.g. balancer paths skip serverInfoMap).
+	// Include live connections as well as the template snapshot.
 	if css := configure.GetConnectedServers(); css != nil {
+		loc := configure.NewLocator()
 		for _, cs := range css.Get() {
-			sr, err := cs.LocateServerRaw()
+			sr, err := loc.Locate(cs)
 			if err != nil {
 				log.Warn("tun: failed to locate server raw for the node bypass: %v", err)
 				continue
