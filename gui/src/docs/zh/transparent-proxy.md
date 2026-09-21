@@ -24,6 +24,8 @@
 
 **排除的网卡名前缀**让从指定网卡进入的流量（Docker 网桥、VPN 隧道；默认为 `docker*`、`veth*`、`wg*`、`ppp*`）不经过 `redirect` 与 `tproxy`，它们的 DNS 仍会被拦截。
 
+`--redirect-respect-bound-device`（Linux）让用 `SO_BINDTODEVICE` 绑定到网卡的 TCP 连接绕过 `redirect`：NetworkManager 的联网检测就是这类连接，被重定向后会报告网络受限，依赖它的应用一直离线。默认关闭。打开后，服务通过 cgroup BPF 给这类连接打上 `0x80` 标记；这需要 5.14 及以上内核和 cgroup v2，缺少时 `redirect` 会启动失败。
+
 ## TUN
 
 内核创建 TUN 设备并配置地址。**自动路由**开启时由 v2rayA 安装路由并把系统解析器指向内核；关闭时由**配置路由脚本**里的安装与卸载脚本完成。
@@ -36,7 +38,7 @@
 
 ## DNS
 
-**设置 → DNS 设置**保存内核 DNS 模块遵循的规则：哪个上游回答哪些域名，查询是否直连。默认规则把私有域名交给 `127.0.0.1:53`（`localhost`，需要本机有解析器监听），`geosite:cn` 直连查询 `223.5.5.5`，其余经代理查询 `1.0.0.1`。出站为 `direct` 时直连查询；其他值都经本机的 SOCKS 入站发出，分流与 SOCKS 流量相同。域名列表为空的规则回答其他规则未命名的全部域名。
+**设置 → DNS 设置**保存内核 DNS 模块遵循的规则：哪个上游回答哪些域名，查询是否直连。默认规则把私有域名交给 `127.0.0.1:53`（`localhost`，需要本机有解析器监听），`geosite:cn` 直连查询 `223.5.5.5`，其余经代理查询 `1.0.0.1`。出站为 `direct` 时直连查询；其他值都经本机的 SOCKS 入站发出，分流与 SOCKS 流量相同。域名列表为空的规则回答其他规则未命名的全部域名。上游写地址（`8.8.8.8`、`dns.google`）、`tcp://host`、`tls://host`（DNS over TLS）或 `https://host/dns-query`（DNS over HTTPS）；不支持 DNS over QUIC，保存时会拒绝。
 
 ## 局域网共享
 

@@ -24,6 +24,8 @@ With the transparent proxy on, traffic reaches the core without any application 
 
 **Excluded Interface Prefixes** keeps traffic arriving on the named interfaces (Docker bridges, VPN tunnels; `docker*`, `veth*`, `wg*`, `ppp*` by default) out of `redirect` and `tproxy`; their DNS is still intercepted.
 
+`--redirect-respect-bound-device` (Linux) lets TCP sockets bound to a device with `SO_BINDTODEVICE` bypass `redirect`: NetworkManager's connectivity checks are such sockets, and a redirected check reports a limited connection and keeps applications offline. Off by default. When it is on, the service marks those sockets with `0x80` through cgroup BPF; that needs kernel 5.14 or later and cgroup v2, and `redirect` fails to start when they are missing.
+
 ## TUN
 
 The core creates the TUN device and assigns its address. With **Auto Route** on, v2rayA installs the routes and points the system resolver at the core; with it off, the setup and teardown scripts under **Configure Route Script** do.
@@ -36,7 +38,7 @@ Known limitation: on Windows and macOS an application that queries a LAN resolve
 
 ## DNS
 
-**Settings → DNS Settings** holds the rules the core's DNS module follows: which upstream answers which domains, and whether the query goes out directly. The defaults send private names to `127.0.0.1:53` (`localhost`, which needs a resolver listening there), `geosite:cn` to `223.5.5.5` directly, and everything else to `1.0.0.1` through the proxy. An outbound of `direct` queries directly; any other value sends the query through the local SOCKS inbound, so it is routed like SOCKS traffic. The rule with an empty domain list answers every domain no other rule names.
+**Settings → DNS Settings** holds the rules the core's DNS module follows: which upstream answers which domains, and whether the query goes out directly. The defaults send private names to `127.0.0.1:53` (`localhost`, which needs a resolver listening there), `geosite:cn` to `223.5.5.5` directly, and everything else to `1.0.0.1` through the proxy. An outbound of `direct` queries directly; any other value sends the query through the local SOCKS inbound, so it is routed like SOCKS traffic. The rule with an empty domain list answers every domain no other rule names. An upstream is an address (`8.8.8.8`, `dns.google`), `tcp://host`, `tls://host` for DNS over TLS or `https://host/dns-query` for DNS over HTTPS; DNS over QUIC is not supported and is refused on save.
 
 ## Sharing with the LAN
 

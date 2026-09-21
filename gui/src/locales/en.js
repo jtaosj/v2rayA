@@ -228,7 +228,6 @@ export default {
     concurrency: "Concurrency",
     inboundSniffing: "Sniffing",
     tunExcludeProcesses: "TUN Excluded Processes",
-    nodeBackend: "Backend",
     tcpFastOpen: "TCP Fast Open",
     saved: "Settings saved and applied",
     saveFailed: "Failed to save settings: {message}",
@@ -253,8 +252,6 @@ export default {
       updateGfwlistAtIntervals: "Update GFWList Regularly (Unit: hour)",
       dependTransparentMode: "Follows Transparent Proxy/System Proxy",
       leastPing: "Least Latency First",
-      backendV2ray: "v2ray / xray",
-      backendSystemDefault: "System Default",
       systemProxy: "System Proxy",
       tunUnsupported: "not supported on this platform",
     },
@@ -283,7 +280,7 @@ export default {
       ssPluginImpl:
         "★default: 'transport' for simple-obfs, 'chained' for v2ray-plugin." +
         "★chained: shadowsocks traffic will be redirect to standalone plugin." +
-        "★transport: processed by the transport layer of v2ray/xray core directly.",
+        "★transport: processed by the transport layer of the core directly.",
     },
   },
   customAddressPort: {
@@ -308,12 +305,11 @@ export default {
   },
   dns: {
     title: "DNS Settings",
-    help: "DNS Help",
-    helpTooltip: "View v2fly DNS documentation",
     colServer: "DNS Server",
     colDomains: "Domain List",
     colOutbound: "Outbound",
-    serverPlaceholder: "e.g. 8.8.8.8 or https://dns.google/dns-query",
+    serverPlaceholder:
+      "e.g. 8.8.8.8, tls://dns.google or https://dns.google/dns-query",
     domainsPlaceholder:
       "One per line, e.g. geosite:cn\nLeave empty for fallback DNS",
     addRule: "Add Rule",
@@ -429,7 +425,7 @@ export default {
   },
   version: {
     v2rayInvalid:
-      "geosite.dat, geoip.dat or v2ray-core may not be installed correctly",
+      "geosite.dat, geoip.dat or v2raya_core may not be installed correctly",
     coreVersionMismatch:
       "Core version mismatch: v2raya_core version must exactly match v2rayA version. {err}",
   },
@@ -453,9 +449,6 @@ export default {
         "Cannot communicate. Firefox does not allow https sites to access http resources, you can try switching to alternate http sites.",
       ],
     },
-    urls: {
-      usage: "https://github.com/v2rayA/v2rayA/wiki/Usage",
-    },
   },
   docs: {
     fallback:
@@ -476,6 +469,33 @@ export default {
     },
   },
   routingA: {
+    title: "RoutingA rules",
+    templates: {
+      title: "Templates",
+      full: "Full rule set, replaces the current rules",
+      add: "Add rules, inserted at the cursor",
+      whitelist: "China direct, everything else through the proxy",
+      blacklist:
+        "Sites outside China through the proxy, everything else direct",
+      global: "Everything through the proxy, LAN direct",
+      minimal:
+        "Only common foreign services through the proxy, everything else direct",
+      ads: "Block advertising domains",
+      streaming:
+        "Streaming through the proxy (Netflix, Disney, HBO, Prime Video, YouTube, Spotify, TikTok)",
+      social: "Social media through the proxy",
+      telegram: "Telegram through the proxy",
+      ai: "AI services through the proxy",
+      dev: "Developer services through the proxy (GitHub, GitLab, Docker, npm, JetBrains, Hugging Face)",
+      cnServices:
+        "Chinese mirrors of Apple, Google, Microsoft, Steam and Bilibili direct",
+      appleMicrosoft: "Apple and Microsoft direct",
+      games: "Game platforms direct",
+      speedtest: "Speed tests direct",
+      lan: "LAN and private addresses direct",
+      bittorrent: "BitTorrent direct (needs Sniffing)",
+      quic: "Block QUIC (UDP 443)",
+    },
     export: "Export",
     import: {
       title: "Import",
@@ -511,7 +531,6 @@ export default {
       actions: "Entry actions",
       raw: "Unrecognized syntax; preserved in the text editor.",
     },
-    editor: "RoutingA rules",
     loading: "Loading rules",
     resetDefault: "Restore defaults",
     resetConfirm: "Replace the current rules with the default template?",
@@ -526,7 +545,7 @@ export default {
       noOutbound: "An outbound is required after ->.",
     },
     reference: {
-      title: "Syntax",
+      title: "Reference",
       format: {
         title: "Rule format",
         description:
@@ -551,21 +570,6 @@ export default {
         title: "Outbounds",
         description:
           "Built-in outbounds are proxy, direct and block; default selects the fallback. Define a named SOCKS or HTTP outbound with optional user and pass.",
-      },
-      presets: {
-        title: "Templates",
-        description:
-          "Rules match from top to bottom, so insert a template above the broad rules. Every template routes to proxy, direct or block; change proxy to the name of your own group where you want one.",
-        whitelist: "China direct, everything else through the proxy",
-        blacklist:
-          "Sites outside China through the proxy, everything else direct",
-        ads: "Block advertising domains",
-        streaming: "Streaming through the proxy",
-        telegram: "Telegram through the proxy",
-        ai: "AI services through the proxy",
-        cnServices:
-          "Chinese mirrors of Apple, Google, Microsoft, Steam and Bilibili direct",
-        lan: "LAN and private addresses direct",
       },
     },
     messages: ["click the button 'Help&Manual' for help"],
@@ -631,7 +635,7 @@ export default {
   tproxyWhiteIpGroups: {
     title: "White IP Groups",
     messages: [
-      "The selected IP group will bypass the XRay/V2Ray core and go directly outbound (through Nftables/Iptables). Please ensure your DNS server is reliable and free of contamination so that clients can resolve the correct IPs.",
+      "The selected IP group will bypass the core and go directly outbound (through Nftables/Iptables). Please ensure your DNS server is reliable and free of contamination so that clients can resolve the correct IPs.",
       "It's best to use this feature when your system is using Nftables, as iptables may experience performance issues when adding a large number of IPs.",
     ],
     formName1: "Hold down Ctrl to select multiple items.",
@@ -654,6 +658,7 @@ export default {
     saveFailed: "Failed to save excluded domains: {message}",
   },
   gfwList: {
+    geosite: "{date} (geosite)",
     title: "Update GFWList",
     messages: [
       "If accessing GitHub is difficult in your current environment, you can download the latest GFWList（geosite.dat）from GitHub（https://github.com/v2rayA/dist-v2ray-rules-dat）, upload it to your server, and then enter your server address here to download it.",
@@ -688,7 +693,7 @@ export default {
       warning:
         "Warning: incorrect process names may bypass traffic unexpectedly. Add only trusted process names.",
       listLabel: "Excluded Process Names",
-      placeholder: "v2raya, v2ray, chrome.exe",
+      placeholder: "v2raya, v2raya_core, chrome.exe",
       hint: "Supports comma or newline separators. Values are deduplicated when saved.",
     },
   },
@@ -701,7 +706,7 @@ export default {
     tagPlaceholder: "e.g. my-socks",
     portPlaceholder: "e.g. 10800",
     empty: "No custom inbounds",
-    hint: "Only SOCKS and HTTP protocols are supported. Tag must be unique and will be used as the v2ray core tag.",
+    hint: "Only SOCKS and HTTP protocols are supported. Tag must be unique and will be used as the core's outbound tag.",
     fillAll: "Tag and port are required",
     deleteConfirm: "Delete inbound {tag}?",
     outbound: "Bound Outbound Group",

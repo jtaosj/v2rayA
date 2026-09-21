@@ -4,7 +4,7 @@ import { useI18n } from "vue-i18n";
 import { useDisplay } from "vuetify";
 import dayjs from "dayjs";
 import { errorText } from "@/api/errors";
-import { useDialog, useNotify } from "@/composables";
+import { useDialog, useNotify, useUnsavedGuard } from "@/composables";
 import DocsLink from "@/components/DocsLink.vue";
 import CustomInboundDialog from "@/dialogs/settings/CustomInbound.vue";
 import DnsDialog from "@/dialogs/settings/Dns.vue";
@@ -36,7 +36,14 @@ const notify = useNotify();
 const { open } = useDialog();
 const store = useAppStore();
 const settings = useSettings();
-const { form, ready, localGFWListVersion, remoteGFWListVersion } = settings;
+useUnsavedGuard(() => settings.dirty.value);
+const {
+  form,
+  ready,
+  localGFWListVersion,
+  localGeositeVersion,
+  remoteGFWListVersion,
+} = settings;
 const saving = ref(false);
 const formRef = ref<{ validate(): Promise<{ valid: boolean }> } | null>(null);
 
@@ -137,6 +144,12 @@ const localVersionAhead = computed(
     !!remoteGFWListVersion.value &&
     dayjs(localGFWListVersion.value).isAfter(dayjs(remoteGFWListVersion.value)),
 );
+const localVersionDisplay = computed(() => {
+  if (localGFWListVersion.value) return localGFWListVersion.value;
+  if (localGeositeVersion.value)
+    return t("gfwList.geosite", { date: localGeositeVersion.value });
+  return t("common.none");
+});
 const positive = (v: unknown) =>
   Number(v) >= 1 || t("configureServer.required");
 
@@ -293,7 +306,7 @@ defineExpose({ sync: () => settings.load() });
           :items="pacModes"
         />
         <SettingRow
-          title="RoutingA"
+          :title="t('routingA.title')"
           :subtitle="t('operations.configure')"
           action
           @click="openRoutingA"
@@ -301,7 +314,7 @@ defineExpose({ sync: () => settings.load() });
         <SettingRow
           :title="t('gfwList.title')"
           :hint="localVersionAhead ? t('setting.messages.gfwlist') : undefined"
-          :subtitle="`${t('common.latest')}: ${remoteGFWListVersion || t('common.checkRunning')}  ${t('common.local')}: ${localGFWListVersion || t('common.none')}`"
+          :subtitle="`${t('common.latest')}: ${remoteGFWListVersion || t('common.checkRunning')}  ${t('common.local')}: ${localVersionDisplay}`"
           action
           @click="openGfwList"
         />
