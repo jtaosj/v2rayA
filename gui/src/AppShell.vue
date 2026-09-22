@@ -17,7 +17,11 @@ import {
 import { useI18n } from "vue-i18n";
 import { useDisplay, useLocale, useTheme } from "vuetify";
 import dayjs from "dayjs";
-import { mdiDotsVertical, mdiPower } from "@mdi/js";
+import {
+  mdiBookOpenPageVariantOutline,
+  mdiDotsVertical,
+  mdiPower,
+} from "@mdi/js";
 import {
   deleteV2ray,
   getAccount,
@@ -74,6 +78,7 @@ import DashboardView from "@/views/DashboardView.vue";
 import LogsView from "@/views/LogsView.vue";
 import ProxiesView from "@/views/ProxiesView.vue";
 import SettingsView from "@/views/SettingsView.vue";
+import SubscriptionsView from "@/views/SubscriptionsView.vue";
 // the docs and their Markdown load only when the page is opened
 const DocsView = defineAsyncComponent(() => import("@/views/DocsView.vue"));
 
@@ -90,6 +95,8 @@ const compact = computed(() => width.value < 600);
 // Material's window classes: compact < 600 (bottom bar), medium and
 // expanded < 1200 (rail with an app bar), large ≥ 1200 (standard drawer)
 const expanded = computed(() => width.value >= 1200);
+// the phone's app bar menu; the docs item closes it, the rest are submenus
+const barMenu = ref(false);
 // the drawer folded to the rail, remembered
 const folded = ref(localStorage.getItem("drawer") === "rail");
 watch(folded, (v) => localStorage.setItem("drawer", v ? "rail" : "open"));
@@ -443,7 +450,7 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", openHash));
       />
       <template #append>
         <ShellMenus v-if="!compact" variant="icons" />
-        <v-menu v-else :close-on-content-click="false">
+        <v-menu v-else v-model="barMenu" :close-on-content-click="false">
           <template #activator="{ props: menu }">
             <v-btn
               v-bind="menu"
@@ -454,6 +461,16 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", openHash));
             />
           </template>
           <v-list density="compact" min-width="240" class="pa-2">
+            <v-list-item
+              :prepend-icon="mdiBookOpenPageVariantOutline"
+              :title="t('common.docs')"
+              :active="store.view === 'docs'"
+              rounded="xl"
+              @click="
+                store.view = 'docs';
+                barMenu = false;
+              "
+            />
             <ShellMenus variant="list" />
           </v-list>
         </v-menu>
@@ -466,7 +483,9 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", openHash));
       <div
         class="page"
         :class="{
-          'page--wide': ['dashboard', 'proxies', 'nodes'].includes(store.view),
+          'page--wide': ['dashboard', 'proxies', 'subscriptions'].includes(
+            store.view,
+          ),
         }"
       >
         <div v-if="expanded" class="page__header">
@@ -496,6 +515,11 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", openHash));
         />
         <ProxiesView
           v-else-if="store.view === 'proxies'"
+          ref="pageRef"
+          :key="sessionSerial"
+        />
+        <SubscriptionsView
+          v-else-if="store.view === 'subscriptions'"
           ref="pageRef"
           :key="sessionSerial"
         />
